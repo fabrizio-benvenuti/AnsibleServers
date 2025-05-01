@@ -1,0 +1,44 @@
+- name: Add Tailscale GPG key and repository for Ubuntu 24.04
+  when: ansible_facts['os_family'] == 'Debian' and ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_version'] == '24.04'
+  block:
+    - name: Add Tailscale GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg > /dev/null
+
+    - name: Add Tailscale repository
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
+
+- name: Add Tailscale GPG key and repository for Ubuntu 22.04
+  when: ansible_facts['os_family'] == 'Debian' and ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_version'] == '22.04'
+  block:
+    - name: Add Tailscale GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg > /dev/null
+
+    - name: Add Tailscale repository
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
+
+- name: Update and install Tailscale for Ubuntu 22.04 and 24.04
+  when: ansible_facts['os_family'] == 'Debian' and ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_version'] in ['22.04', '24.04']
+  block:
+    - name: Update apt package index
+      ansible.builtin.command:
+        cmd: sudo apt-get update
+
+    - name: Install Tailscale
+      ansible.builtin.command:
+        cmd: sudo apt-get install -y tailscale
+
+- name: Login to Tailscale
+  when: ansible_facts['os_family'] == 'Debian' and ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_version'] in ['22.04', '24.04']
+  block:
+    - name: Login to Tailscale
+      ansible.builtin.command:
+        cmd: sudo tailscale up
+      register: tailscale_login_output
+
+    - name: Display Tailscale login link
+      ansible.builtin.debug:
+        msg: "{{ tailscale_login_output.stdout }}"

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Control</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="//cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        .output {
+            display: block;
+            white-space: pre-wrap;
+            background: #f4f4f4;
+            padding: 5px;
+            border: 1px solid #ddd;
+            height: 150px;
+            overflow-y: auto;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background-color: green;
+        }
+
+        .status-offline {
+            background-color: red;
+        }
+
+        .last-checked {
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>Server Control Panel</h1>
+    <button class="logout-button" onclick="logout()">Logout</button>
+    <hr>
+    <div id="servers"></div>
+    <script>
+        const socket = io({
+            transports: ['websocket'],
+            secure: true,
+        });
+        const outputs = {};   // keep references to each server’s <span>
+        const lastChecked = {}; // keep track of last checked times
+        const running = {}; // Track running state per server
+
+        // Build the DOM once per server
+        function buildServers(status) {
+            const container = document.getElementById('servers');
+            for (let [srv, st] of Object.entries(status)) {
+                const div = document.createElement('div');
+                div.id = `panel-${srv}`;
+                div.className = 'server-panel';
+                div.innerHTML = `
+                    <h3 class="server-name">${srv}</h3>
+                    <p class="server-status">
+                        <span class="status-indicator ${st === 'Online' ? 'status-online' : 'status-offline'}"></span>
+                        Status: <span class="status">${st}</span>
+                    </p>
+                    <p class="last-checked" id="last-checked-${srv}">Last checked: Never</p>
+                    <div class="server-buttons">
+                        <button class="power-on-button" onclick="sendCommand('${srv}','on')">Power ON</button>
+                        <button class="power-off-button" onclick="sendCommand('${srv}','off')">Power OFF</button>
+                    </div>
+                    <div class="wait-message" id="wait-${srv}" style="display:none;">
+                        <span class="wait-dot"></span>
+                        Please wait, a command is still running…
+                    </div>
+                    <div class="ignored-message" id="ignored-${srv}" style="display:none;">
+                        <span class="wait-dot" style="background:#dc3545"></span>
+                        Command ignored: another command is still running.
+                    </div>
+                    <div>
+                        <strong>Output:</strong>
+                        <span id="output-${srv}" class="output"></span>
+                    </div>
+                `;
+                container.appendChild(div);
+                outputs[srv] = document.getElementById(`output-${srv}`);
+                lastChecked[srv] = document.getElementById(`last-checked-${srv}`);
+            }
+        }
+
+        function updateStatuses(status) {
+            const now = new Date();
+            for (let [srv, st] of Object.entries(status)) {
+                const panel = document.getElementById(`panel-${srv}`);
+                const statusEl = panel.querySelector('.status');
+                const indicator = panel.querySelector('.status-indicator');
+                const lastCheckedEl = lastChecked[srv];
+
+                // Update status text
+                statusEl.textContent = st;
+
+                // Update status indicator color
+                indicator.className = `status-indicator ${st === 'Online' ? 'status-online' : 'status-offline'}`;
+
+                // Update last checked time
+                lastCheckedEl.textContent = `Last checked: ${now.toLocaleTimeString()}`;
+            }
+        }
+
+        socket.on('connect', () => socket.emit('get_status'));
+
+        socket.once('status_update', status => {
+            buildServers(status);
+            setInterval(() => socket.emit('get_status'), 5000);
+        });
+
+        socket.on('status_update', updateStatuses);
+
+        socket.on('script_output', data => {
+            const o = outputs[data.server];
+            if (!o) return;
+            o.textContent += data.line + "\n";
+            o.scrollTop = o.scrollHeight;
+
+            // Hide wait message if we get a line indicating completion
+            if (/completed|done|finished|power off|power on|shutting down/i.test(data.line)) {
+                running[data.server] = false;
+                document.getElementById(`wait-${data.server}`).style.display = 'none';
+            }
+        });
+
+        socket.on('command_ignored', data => {
+            // Hide wait message if visible
+            document.getElementById(`wait-${data.server}`).style.display = 'none';
+            // Show ignored message
+            const ignoredMsg = document.getElementById(`ignored-${data.server}`);
+            ignoredMsg.style.display = 'flex';
+            // Hide after 3 seconds, then restore wait-message if still running
+            setTimeout(() => {
+                ignoredMsg.style.display = 'none';
+                if (running[data.server]) {
+                    document.getElementById(`wait-${data.server}`).style.display = 'block';
+                }
+            }, 3000);
+        });
+
+        socket.on('command_finished', data => {
+            running[data.server] = false;
+            document.getElementById(`wait-${data.server}`).style.display = 'none';
+        });
+
+        function sendCommand(s, a) {
+            socket.emit('run_command', { server: s, action: a });
+            running[s] = true;
+            document.getElementById(`wait-${s}`).style.display = 'block';
+        }
+
+        function logout() {
+            socket.disconnect(); // Explicitly disconnect the WebSocket
+            window.location.href = '/logout'; // Redirect to the logout route
+        }
+    </script>
+</body>
+</html>

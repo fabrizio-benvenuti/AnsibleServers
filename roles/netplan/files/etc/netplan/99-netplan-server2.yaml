@@ -1,0 +1,14 @@
+network:
+  version: 2
+  ethernets:
+    eth0:  # Replace eth0 with your interface name
+      addresses:
+        - 192.168.1.201/24  # Replace with your desired IP and subnet
+      routes:
+        - to: 0.0.0.0/0
+          via: 192.168.1.1  # Replace with your gateway
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 8.8.4.4
+      wakeonlan: true

@@ -1,0 +1,111 @@
+- name: Ensure Python3 and pip are installed
+  apt:
+    name:
+      - python3
+      - python3-pip
+    state: present
+    update_cache: yes
+
+- name: ensure /opt/webserver directory exists
+  file:
+    path: /opt/webserver
+    state: directory
+    owner: fabrizio
+    group: fabrizio
+    mode: '0755'
+
+- name: copy python3 requirements
+  copy:
+    src: opt/webserver/requirements.txt
+    dest: /opt/webserver/requirements.txt
+    owner: fabrizio
+    group: fabrizio
+    mode: '0644'
+
+- name: Install required Python packages
+  pip:
+    requirements: /opt/webserver/requirements.txt
+    executable: pip3
+
+- name: Copy Python scripts and assets
+  copy:
+    src: "{{ item }}"
+    dest: "/opt/webserver/"
+    owner: fabrizio
+    group: fabrizio
+    mode: '0755'
+  loop:
+    - opt/webserver/monitor.py
+    - opt/webserver/requirements.txt
+
+- name: Copy templates directory
+  copy:
+    src: opt/webserver/templates/
+    dest: /opt/webserver/templates/
+    owner: fabrizio
+    group: fabrizio
+    mode: '0755'
+
+- name: Copy static directory
+  copy:
+    src: opt/webserver/static/
+    dest: /opt/webserver/static/
+    owner: fabrizio
+    group: fabrizio
+    mode: '0755'
+
+- name: Generate auth.py from template
+  template:
+    src: auth.py.j2
+    dest: /opt/webserver/auth.py
+    owner: fabrizio
+    group: fabrizio
+    mode: '0644'
+
+- name: Template app.py with secret key from vault
+  template:
+    src: app.py.j2
+    dest: /opt/webserver/app.py
+    owner: fabrizio
+    group: fabrizio
+    mode: '0755'
+
+- name: Decrypt and copy SSL certificate
+  ansible.builtin.copy:
+    src: opt/webserver/cert.pem
+    dest: /opt/webserver/cert.pem
+    owner: fabrizio
+    group: fabrizio
+    mode: '0600'
+
+- name: Decrypt and copy SSL key
+  ansible.builtin.copy:
+    src: opt/webserver/key.pem
+    dest: /opt/webserver/key.pem
+    owner: fabrizio
+    group: fabrizio
+    mode: '0600'
+
+- name: Create systemd service for the Flask webserver
+  copy:
+    dest: /etc/systemd/system/webserver.service
+    content: |
+      [Unit]
+      Description=Python Server Control Web App
+      After=network.target
+
+      [Service]
+      User=fabrizio
+      WorkingDirectory=/opt/webserver
+      ExecStart=/usr/bin/python3 app.py
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Reload systemd
+
+- name: Enable and Restart webserver service
+  systemd:
+    name: webserver
+    enabled: yes
+    state: restarted

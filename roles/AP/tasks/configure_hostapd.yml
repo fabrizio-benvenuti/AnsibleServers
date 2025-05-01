@@ -1,0 +1,22 @@
+- name: Install dnsmasq
+  apt:
+    name:
+      - hostapd
+    state: present
+    update_cache: yes
+  
+- name: Render hostapd.conf from template
+  template:
+    src: etc/hostapd/hostapd.conf.j2
+    dest: /etc/hostapd/hostapd.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart hostapd
+
+- name: Set hostapd configuration file location
+  lineinfile:
+    path: /etc/default/hostapd
+    regexp: '^DAEMON_CONF='
+    line: 'DAEMON_CONF="/etc/hostapd/hostapd.conf"'
+  notify: restart hostapd

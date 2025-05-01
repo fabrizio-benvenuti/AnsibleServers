@@ -1,0 +1,6 @@
+- import_tasks: configure_dnsmasq.yml
+  tags: configure_dnsmasq
+- import_tasks: configure_hostapd.yml
+  tags: configure_hostapd
+- import_tasks: configure_ip_NAT.yml
+  tags: configure_ip_NAT

@@ -1,0 +1,11 @@
+- name: Apply netplan configuration
+  command: |
+    netplan apply
+    netplan generate
+
+- name: Restart Systemd neworkd
+  service:
+    name: systemd-networkd
+    state: restarted
+  when: inventory_hostname in ['server1', 'server2', 'raspberrypi']
+

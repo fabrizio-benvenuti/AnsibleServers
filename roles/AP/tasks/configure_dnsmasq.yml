@@ -1,0 +1,24 @@
+- name: Install dnsmasq
+  apt:
+    name:
+      - dnsmasq
+    state: present
+    update_cache: yes
+
+- name: copy resolv.conf and stop systemd-resolve
+  copy:
+    src: etc/resolv.conf
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: stop and disable systemd-resolve
+
+- name: Copy dnsmasq.conf and enable and start dnsmasq.service
+  copy:
+    src: etc/dnsmasq.conf
+    dest: /etc/dnsmasq.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart dnsmasq

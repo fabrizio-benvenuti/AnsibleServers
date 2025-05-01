@@ -1,0 +1,24 @@
+- name: restart dnsmasq
+  service:
+    name: dnsmasq
+    state: restarted
+
+- name: stop and disable systemd-resolve
+  service:
+    name: systemd-resolved
+    enabled: no
+    state: stopped
+
+- name: restart hostapd
+  service:
+    name: hostapd
+    state: restarted
+    masked: no
+    enabled: yes
+
+- name: reload sysctl
+  ansible.builtin.command:
+    cmd: sysctl -p
+
+- name: save iptables rules
+  shell: iptables-save > /etc/iptables/rules.v4

@@ -1,0 +1,57 @@
+---
+- name: Ensure /etc/systemd/system directory exists on target host
+  ansible.builtin.file:
+    path: /etc/systemd/system
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Ensure /init directory exists on target host
+  ansible.builtin.file:
+    path: /init
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy systemd service files to target host
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/systemd/system/
+    owner: root
+    group: root
+    mode: '0644'
+    remote_src: no
+  with_fileglob:
+    - etc/systemd/system/*
+
+- name: Copy init files to target host
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /init/
+    owner: root
+    group: root
+    mode: '0755'
+    remote_src: no
+  with_fileglob:
+    - init/*
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Enable and start all timer services
+  ansible.builtin.systemd:
+    name: "{{ item | basename }}"
+    enabled: yes
+    state: started
+  with_fileglob:
+    - etc/systemd/system/*.timer
+  register: timer_services
+
+- name: Debug enabled and started timers
+  ansible.builtin.debug:
+    msg: "Enabled and started timer: {{ item.item }}"
+  with_items: "{{ timer_services.results }}"
+  when: item.changed

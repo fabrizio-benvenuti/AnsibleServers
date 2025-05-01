@@ -1,0 +1,6 @@
+- import_tasks: install_wakeonlan.yml
+  tags: install_wakeonlan
+- import_tasks: configure_services.yml
+  tags: configure_services
+- import_tasks: configure_webserver.yml
+  tags: configure_webserver

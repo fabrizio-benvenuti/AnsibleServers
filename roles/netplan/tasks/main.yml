@@ -1,0 +1,3 @@
+- import_tasks: configure_netplan.yml
+  tags: configure_netplan
+

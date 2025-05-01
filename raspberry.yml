@@ -1,0 +1,10 @@
+---
+- name: "Apply LAVA server configuration"
+  hosts: raspberrypi
+  become: true
+  gather_facts: true
+  roles:
+    - common
+    - netplan
+    - wake_on_lan
+    - AP

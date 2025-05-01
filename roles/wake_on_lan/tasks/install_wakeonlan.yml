@@ -1,0 +1,7 @@
+---
+# Task to install wakeonlan
+- name: Install wakeonlan package
+  apt:
+    name: wakeonlan
+    state: present
+    update_cache: yes

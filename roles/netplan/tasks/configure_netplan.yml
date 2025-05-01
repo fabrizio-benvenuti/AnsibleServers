@@ -1,0 +1,30 @@
+- name: Ensure the base directory for cloud config exists
+  stat:
+    path: /etc/cloud/cloud.cfg.d
+  register: cloud_cfg_dir
+
+- name: Create the file to disable network config if the base directory exists
+  copy:
+    dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    content: |
+      network: {config: disabled}
+    owner: root
+    group: root
+    mode: '0644'
+  when: cloud_cfg_dir.stat.exists
+
+- name: Ensure the base directory for cloud netplan exists
+  stat:
+    path: /etc/netplan
+  register: netplan_dir
+
+
+- name: Copy the appropriate netplan file based on inventory hostname
+  copy:
+    src: "etc/netplan/99-netplan-{{ inventory_hostname }}.yaml"
+    dest: /etc/netplan/99-netplan-{{ inventory_hostname }}.yaml
+    owner: root
+    group: root
+    mode: '0600'  # Restrict permissions to avoid warnings
+  when: inventory_hostname in ['server1', 'server2', 'raspberrypi'] and netplan_dir.stat.exists
+  notify: Apply netplan configuration
