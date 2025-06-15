@@ -1,5 +1,5 @@
 ---
-- name: "Apply LAVA server configuration"
+- name: "Apply wakeonlan server configuration"
   hosts: raspberrypi
   become: true
   gather_facts: true

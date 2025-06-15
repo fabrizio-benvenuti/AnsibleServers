@@ -1,0 +1,2 @@
+- import_tasks: install_and_setup.yml
+  tags: install_and_setup

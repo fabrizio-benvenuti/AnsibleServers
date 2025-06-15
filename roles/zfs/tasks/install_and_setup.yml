@@ -1,0 +1,107 @@
+---
+- name: Ensure ZFS is installed
+  ansible.builtin.package:
+    name: zfsutils-linux
+    state: present
+
+- name: Ensure ZFS kernel module is loaded
+  ansible.builtin.modprobe:
+    name: zfs
+    state: present
+
+- name: Check if ZFS pool is imported
+  ansible.builtin.command: "zpool list -H -o name {{ item.name }}"
+  register: zpool_imported_check
+  failed_when: false
+  changed_when: false
+  loop: "{{ zfs_pools }}"
+  loop_control:
+    loop_var: item
+
+- name: Check if ZFS pool is available for import
+  ansible.builtin.command: "zpool import | grep -w '^  pool: {{ item.name }}'"
+  register: zpool_importable_check
+  failed_when: false
+  changed_when: false
+  loop: "{{ zfs_pools }}"
+  loop_control:
+    loop_var: item
+
+- name: Import ZFS pool if available for import
+  ansible.builtin.command: "zpool import {{ item.name }}"
+  loop: "{{ zfs_pools }}"
+  loop_control:
+    loop_var: item
+    index_var: pool_idx
+  when: zpool_imported_check.results[pool_idx].rc != 0 and zpool_importable_check.results[pool_idx].rc == 0
+
+- name: Create ZFS pool if not present or importable (SAFE)
+  ansible.builtin.debug:
+    msg: "ZFS pool {{ item.name }} does not exist or is not importable. Please create it manually with the correct vdevs to avoid data loss."
+  loop: "{{ zfs_pools }}"
+  loop_control:
+    loop_var: item
+    index_var: pool_idx
+  when: zpool_imported_check.results[pool_idx].rc != 0 and zpool_importable_check.results[pool_idx].rc == 0
+
+- name: Check if dataset exists
+  ansible.builtin.command: "zfs list -H -o name {{ item.0.name }}/{{ item.1.name }}"
+  register: dataset_check
+  failed_when: false
+  changed_when: false
+  loop: "{{ zfs_pools | subelements('datasets') }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1.name }}"
+    index_var: ds_idx
+  vars:
+    pool: "{{ item.0 }}"
+    dataset: "{{ item.1 }}"
+
+- name: Create dataset if not present
+  ansible.builtin.command: "zfs create -o mountpoint={{ dataset.mountpoint }} {{ pool.name }}/{{ dataset.name }}"
+  when: dataset_check.results[ds_idx].rc != 0
+  loop: "{{ zfs_pools | subelements('datasets') }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1.name }}"
+    index_var: ds_idx
+  vars:
+    pool: "{{ item.0 }}"
+    dataset: "{{ item.1 }}"
+
+- name: Ensure dataset mountpoint directory exists
+  ansible.builtin.file:
+    path: "{{ dataset.mountpoint }}"
+    state: directory
+    owner: "{{ dataset.owner }}"
+    group: "{{ dataset.group }}"
+    mode: "{{ dataset.mode }}"
+  loop: "{{ zfs_pools | subelements('datasets') }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1.name }}"
+    index_var: ds_idx
+  vars:
+    pool: "{{ item.0 }}"
+    dataset: "{{ item.1 }}"
+
+- name: Ensure dataset is mounted
+  ansible.builtin.command: "zfs mount {{ pool.name }}/{{ dataset.name }}"
+  register: mount_result
+  failed_when: false
+  changed_when: mount_result.rc == 0
+  loop: "{{ zfs_pools | subelements('datasets') }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1.name }}"
+    index_var: ds_idx
+  vars:
+    pool: "{{ item.0 }}"
+    dataset: "{{ item.1 }}"
+
+- name: Ensure ZFS datasets are mounted at boot
+  ansible.builtin.command: "zfs set canmount=on {{ pool.name }}/{{ dataset.name }}"
+  loop: "{{ zfs_pools | subelements('datasets') }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1.name }}"
+    index_var: ds_idx
+  vars:
+    pool: "{{ item.0 }}"
+    dataset: "{{ item.1 }}"

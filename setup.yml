@@ -1,0 +1,7 @@
+---
+- name: "Apply NAS servers configuration"
+  hosts: server1,server2
+  become: true
+  gather_facts: true
+  roles:
+    - zfs

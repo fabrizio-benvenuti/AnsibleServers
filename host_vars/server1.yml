@@ -1,0 +1,8 @@
+zfs_pools:
+  - name: mypool
+    datasets:
+      - name: data
+        mountpoint: /data
+        owner: server1
+        group: server1
+        mode: "0755"
