@@ -1,0 +1,52 @@
+---
+- name: Ensure /init directory exists
+  file:
+    path: /init
+    state: directory
+    mode: '0755'
+
+- name: Copy media_linker.sh script to /init
+  copy:
+    dest: /init/media_linker.sh
+    content: |
+      #!/bin/bash
+      MEDIA_TYPES=(
+        "images:jpg jpeg png gif bmp tiff webp"
+        "videos:mp4 mkv avi mov wmv flv webm mpeg mpg"
+        "audios:mp3 wav flac aac ogg m4a opus"
+      )
+      for DIR in "$@"; do
+        [ -d "$DIR" ] || continue
+        for TYPE in "${MEDIA_TYPES[@]}"; do
+          FOLDER="${TYPE%%:*}"
+          EXTENSIONS="${TYPE#*:}"
+          TARGET="$DIR/$FOLDER"
+          mkdir -p "$TARGET"
+          for EXT in $EXTENSIONS; do
+            find "$DIR" -type f -iname "*.$EXT" -exec ln -sf {} "$TARGET/" \;
+          done
+        done
+      done
+  mode: '0755'
+
+- name: Create systemd service for media linker
+  copy:
+    dest: /etc/systemd/system/media_linker.service
+    content: |
+      [Unit]
+      Description=Media Linker Service
+      After=network.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/init/media_linker.sh '/data/old_server/disk2/A/antonella' '/data/old_server/disk2/A/comune' '/data/old_server/disk2/A/FabrizioRedmi11s' '/data/old_server/disk2/A/RobertoCell'
+      RemainAfterExit=true
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Reload systemd and enable service
+  systemd:
+    daemon_reload: yes
+    enabled: yes
+    name: media_linker.service

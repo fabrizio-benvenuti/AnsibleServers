@@ -1,0 +1,2 @@
+- import_tasks: install_media_link_service.yml
+  tags: install_media_link_service

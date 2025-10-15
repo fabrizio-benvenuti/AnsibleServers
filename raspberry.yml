@@ -8,3 +8,4 @@
     - netplan
     - wake_on_lan
     - AP
+    - n8n_docker

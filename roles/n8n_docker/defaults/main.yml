@@ -1,0 +1,10 @@
+---
+# Defaults for n8n_docker role
+n8n_project_dir: /opt/n8n-compose
+n8n_user: fabrizio
+n8n_group: fabrizio
+domain_name: taila7b05.ts.net
+subdomain: ubuntu-1
+generic_timezone: Europe/Berlin
+ssl_email: fabry225@gmail.com
+n8n_port: 5678

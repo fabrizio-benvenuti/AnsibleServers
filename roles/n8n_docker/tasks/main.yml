@@ -1,0 +1,128 @@
+---
+- name: Install prerequisites for Docker
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: yes
+  tags:
+    - docker
+
+- name: Add Docker GPG apt key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    state: present
+  tags:
+    - docker
+
+- name: Add Docker apt repository
+  vars:
+    _repo_base: "{{ 'ubuntu' if ansible_distribution == 'Ubuntu' else 'debian' }}"
+  ansible.builtin.apt_repository:
+    repo: "deb https://download.docker.com/linux/{{ _repo_base }} {{ ansible_lsb.codename }} stable"
+    state: present
+    filename: docker
+  tags:
+    - docker
+
+- name: Install docker engine and compose plugin
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+  tags:
+    - docker
+
+- name: Ensure docker group exists
+  group:
+    name: docker
+    state: present
+  tags:
+    - docker
+
+- name: Add user to docker group
+  user:
+    name: "{{ n8n_user }}"
+    groups: docker
+    append: yes
+  tags:
+    - docker
+
+- name: Create n8n project directory
+  file:
+    path: "{{ n8n_project_dir }}"
+    state: directory
+    owner: "{{ n8n_user }}"
+    group: "{{ n8n_group }}"
+    mode: '0755'
+  tags:
+    - n8n
+
+- name: Copy .env from template
+  template:
+    src: env.j2
+    dest: "{{ n8n_project_dir }}/.env"
+    owner: "{{ n8n_user }}"
+    group: "{{ n8n_group }}"
+    mode: '0644'
+  tags:
+    - n8n
+
+- name: Copy compose.yaml from template
+  template:
+    src: compose.yaml.j2
+    dest: "{{ n8n_project_dir }}/compose.yaml"
+    owner: "{{ n8n_user }}"
+    group: "{{ n8n_group }}"
+    mode: '0644'
+  tags:
+    - n8n
+
+- name: Ensure local-files directory exists
+  file:
+    path: "{{ n8n_project_dir }}/local-files"
+    state: directory
+    owner: "{{ n8n_user }}"
+    group: "{{ n8n_group }}"
+    mode: '0755'
+  tags:
+    - n8n
+
+- name: Ensure systemd service for n8n compose exists
+  copy:
+    dest: /etc/systemd/system/n8n-docker-compose.service
+    content: |
+      [Unit]
+      Description=n8n Docker Compose
+      After=network-online.target docker.service
+      Wants=docker.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory={{ n8n_project_dir }}
+      ExecStart=/usr/bin/docker compose -f compose.yaml up -d
+      ExecStop=/usr/bin/docker compose -f compose.yaml down
+      User={{ n8n_user }}
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Reload systemd
+  tags:
+    - n8n
+
+- name: Enable and start n8n-docker-compose service
+  systemd:
+    name: n8n-docker-compose
+    enabled: yes
+    state: restarted
+  tags:
+    - n8n
