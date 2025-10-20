@@ -45,6 +45,8 @@ services:
       - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
       - N8N_PORT={{ n8n_port }}
       - N8N_PROTOCOL=https
+      # Trust requests forwarded by the host reverse proxy (traefik) / loopback
+      - N8N_TRUSTED_PROXIES=${N8N_TRUSTED_PROXIES}
       - N8N_RUNNERS_ENABLED=true
       - NODE_ENV=production
       - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
