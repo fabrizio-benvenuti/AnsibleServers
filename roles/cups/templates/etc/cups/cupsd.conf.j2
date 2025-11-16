@@ -1,0 +1,51 @@
+# Managed by Ansible - CUPS server configuration
+
+LogLevel info
+MaxLogSize 0
+
+{% if cups_listen_all %}
+Port 631
+{% else %}
+{% for entry in cups_listen %}
+Listen {{ entry }}
+{% endfor %}
+{% endif %}
+
+WebInterface Yes
+ServerAdmin {{ cups_server_admin }}
+DefaultAuthType Basic
+
+# Allow remote access (adjust networks via cups_allow_from)
+<Location />
+  Order allow,deny
+  Allow from 127.0.0.1
+  Allow @LOCAL
+{% for net in cups_allow_from %}
+  Allow from {{ net }}
+{% endfor %}
+</Location>
+
+<Location /admin>
+  AuthType Default
+  Require user @SYSTEM
+  Order allow,deny
+  Allow from 127.0.0.1
+  Allow @LOCAL
+{% for net in cups_allow_from %}
+  Allow from {{ net }}
+{% endfor %}
+</Location>
+
+<Location /admin/conf>
+  AuthType Default
+  Require user @SYSTEM
+  Order allow,deny
+  Allow from 127.0.0.1
+  Allow @LOCAL
+{% for net in cups_allow_from %}
+  Allow from {{ net }}
+{% endfor %}
+</Location>
+
+Browsing On
+BrowseLocalProtocols dnssd

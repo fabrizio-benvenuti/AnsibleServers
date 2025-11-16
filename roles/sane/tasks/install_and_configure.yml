@@ -1,0 +1,83 @@
+---
+# Install SANE and configure saned (SANE network daemon)
+- name: Install sane and avahi packages
+  apt:
+    name: "{{ sane_packages + sane_extra_packages }}"
+    state: present
+    update_cache: yes
+
+- name: Ensure scanner device group exists
+  group:
+    name: "{{ sane_device_group }}"
+    state: present
+
+- name: Add device user to scanner group
+  user:
+    name: "{{ sane_device_user }}"
+    groups: "{{ sane_device_group }}"
+    append: yes
+  when: sane_device_user is defined and sane_device_user | length > 0
+
+- name: Add xerox_mfp USB ids to backend config (if any)
+  lineinfile:
+    path: /etc/sane.d/xerox_mfp.conf
+    line: "usb 0x{{ item.vendor }} 0x{{ item.product }}"
+    create: yes
+    state: present
+    insertafter: EOF
+  loop: "{{ sane_xerox_ids }}"
+  when: sane_xerox_ids | length > 0
+
+- name: Create udev rule for scanner devices
+  copy:
+    dest: /etc/udev/rules.d/99-scanner.rules
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      # Udev rules added by Ansible sane role
+      {% for id in sane_xerox_ids %}
+      SUBSYSTEM=="usb", ATTR{idVendor}=="{{ id.vendor }}", ATTR{idProduct}=="{{ id.product }}", MODE="0660", GROUP="{{ sane_device_group }}"
+      {% endfor %}
+  when: sane_xerox_ids | length > 0
+  notify:
+    - reload udev
+
+- name: Manage saned.conf allowed clients
+  template:
+    src: saned.conf.j2
+    dest: /etc/sane.d/saned.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: sane_manage_saned_conf | default(true)
+  notify:
+    - restart saned
+
+- name: Enable and start saned socket
+  systemd:
+    name: saned.socket
+    state: started
+    enabled: yes
+
+- name: Ensure saned service is enabled (for some distros)
+  # Only try to enable the saned.service if the unit file is present and not masked.
+  # Some distributions use socket activation only and keep the service masked; enabling
+  # a masked unit fails. We check the unit-file state first and skip enabling when masked.
+  block:
+    - name: Check saned unit-file state
+      command: systemctl list-unit-files saned.service --no-legend --no-pager
+      register: saned_unitfile
+      failed_when: false
+      changed_when: false
+
+    - name: Enable and start saned service when available and not masked
+      systemd:
+        name: saned.service
+        state: started
+        enabled: yes
+      when: "('masked' not in (saned_unitfile.stdout | default(''))) and (ansible_facts['os_family'] == 'Debian' or ansible_facts['os_family'] == 'Ubuntu')"
+  rescue:
+    - name: Debug saned service enable skipped due to masked/not-present unit
+      debug:
+        msg: "saned.service is masked or not present; saned.socket remains enabled. To force-enable, unmask the unit on the host (systemctl unmask saned.service)"

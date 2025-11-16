@@ -1,0 +1,9 @@
+---
+- name: reload udev
+  command: udevadm control --reload && udevadm trigger
+
+- name: restart saned
+  systemd:
+    name: saned.service
+    state: restarted
+    enabled: yes

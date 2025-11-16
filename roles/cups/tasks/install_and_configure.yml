@@ -1,0 +1,104 @@
+---
+- name: Install CUPS packages
+  apt:
+    name:
+      - cups
+    state: present
+    update_cache: yes
+
+- name: Install extra CUPS drivers/packages
+  apt:
+    name: "{{ cups_extra_packages }}"
+    state: present
+    update_cache: yes
+  when: cups_extra_packages | length > 0
+
+- name: Ensure CUPS service is enabled and started
+  service:
+    name: cups
+    enabled: yes
+    state: started
+
+- name: Backup original cupsd.conf if not already backed up
+  copy:
+    src: /etc/cups/cupsd.conf
+    dest: /etc/cups/cupsd.conf.original
+    remote_src: true
+    force: false
+    mode: '0644'
+  when: (cups_backup_original | default(true)) and (cups_manage_server_conf | default(true))
+
+- name: Deploy CUPS configuration
+  template:
+    src: etc/cups/cupsd.conf.j2
+    dest: /etc/cups/cupsd.conf
+    owner: root
+    group: lp
+    mode: '0640'
+  notify: restart cups
+  when: cups_manage_server_conf | default(true)
+
+- name: Ensure CUPS admin user is in lpadmin group
+  user:
+    name: "{{ cups_admin_user }}"
+    groups: lpadmin
+    append: yes
+  when: cups_admin_user is defined and cups_admin_user | length > 0
+
+- name: Ensure directory for custom PPDs exists
+  file:
+    path: /usr/share/ppd/custom
+    state: directory
+    owner: root
+    group: lp
+    mode: '0755'
+  when: cups_printers | selectattr('ppd_src', 'defined') | list | length > 0
+  tags: cups_printers
+
+- name: Copy provided PPD files
+  copy:
+    src: "{{ item.ppd_src }}"
+    dest: "/usr/share/ppd/custom/{{ item.name }}.ppd"
+    owner: root
+    group: lp
+    mode: '0644'
+  loop: "{{ cups_printers | selectattr('ppd_src', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: cups_printers
+
+- name: Add or modify printers (via PPD path)
+  command: >-
+    lpadmin -p "{{ item.name }}" -E -v "{{ item.device_uri }}"
+    -L "{{ item.location | default('') }}"
+    -D "{{ item.description | default(item.name) }}"
+    -P "{{ item.ppd | default('/usr/share/ppd/custom/' ~ item.name ~ '.ppd') }}"
+  loop: "{{ cups_printers | selectattr('ppd', 'defined') | list + cups_printers | selectattr('ppd_src', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: cups_printers
+
+- name: Add or modify printers (via model)
+  command: >-
+    lpadmin -p "{{ item.name }}" -E -v "{{ item.device_uri }}"
+    -L "{{ item.location | default('') }}"
+    -D "{{ item.description | default(item.name) }}"
+    -m "{{ item.model }}"
+  loop: "{{ cups_printers | rejectattr('ppd', 'defined') | rejectattr('ppd_src', 'defined') | selectattr('model', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: cups_printers
+
+- name: Enable printers
+  command: cupsenable "{{ item.name }}"
+  loop: "{{ cups_printers | selectattr('enabled', 'defined') | selectattr('enabled') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: cups_printers
+
+- name: Set default printer
+  command: lpadmin -d "{{ item.name }}"
+  loop: "{{ cups_printers | selectattr('default', 'defined') | selectattr('default') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: cups_printers

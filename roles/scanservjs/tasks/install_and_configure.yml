@@ -1,0 +1,83 @@
+---
+# Install and run scanservjs via Docker (default)
+- name: Check for docker binary
+  command: docker --version
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Optionally install docker (APT) if missing
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: yes
+  when: docker_check.rc != 0 and scanservjs_install_docker | bool
+
+- name: Add Docker GPG apt key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    state: present
+  when: docker_check.rc != 0 and scanservjs_install_docker | bool
+
+- name: Add Docker apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://download.docker.com/linux/debian {{ ansible_lsb.codename }} stable"
+    state: present
+    filename: docker
+  when: docker_check.rc != 0 and scanservjs_install_docker | bool
+
+- name: Install docker engine and tools
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    state: present
+    update_cache: yes
+  when: docker_check.rc != 0 and scanservjs_install_docker | bool
+
+- name: Fail if docker not available and not installing
+  fail:
+    msg: "Docker was not found and scanservjs_install_docker is false. Set scanservjs_install_docker: true to allow automatic installation or install Docker manually."
+  when: docker_check.rc != 0 and not (scanservjs_install_docker | bool)
+
+- name: Pull scanservjs image
+  command: docker pull {{ scanservjs_image }}:{{ scanservjs_version }}
+  register: pull_out
+  changed_when: "'Downloaded newer image' in pull_out.stdout or 'Status: Downloaded' in pull_out.stdout"
+
+- name: Check existing container
+  command: docker ps -a --filter name={{ scanservjs_container_name }} --format '{{"{{.ID}}"}} {{"{{.Status}}"}}'
+  register: existing_container
+  failed_when: false
+  changed_when: false
+
+- name: Remove container if present but exited or different image (idempotent safety)
+  shell: |
+    docker rm -f {{ scanservjs_container_name }} || true
+  when: existing_container.stdout != '' and 'Up' not in existing_container.stdout
+  register: removed
+  changed_when: removed.rc == 0
+
+- name: Run scanservjs container (host network)
+  shell: >-
+    docker run -d
+    --name {{ scanservjs_container_name }}
+    {% if scanservjs_use_host_network %} --network host {% else %} -p {{ scanservjs_publish_port }}:8080 {% endif %}
+    -v {{ scanservjs_dbus_socket }}:{{ scanservjs_dbus_socket }}:ro
+    --restart {{ scanservjs_restart }}
+    {% if scanservjs_privileged %} --privileged {% endif %}
+    {{ scanservjs_image }}:{{ scanservjs_version }}
+  args:
+    executable: /bin/bash
+  when: "existing_container.stdout == '' or ('Up' not in existing_container.stdout)"
+  register: run_res
+
+- name: Ensure container is running
+  command: docker start {{ scanservjs_container_name }}
+  when: existing_container.stdout != '' and 'Up' not in existing_container.stdout

@@ -1,0 +1,4 @@
+---
+- name: restart scanservjs container
+  command: docker restart {{ scanservjs_container_name }}
+  failed_when: false

@@ -1,0 +1,32 @@
+---
+# Defaults for CUPS role
+cups_listen_all: true           # If true, listen on all interfaces (Port 631)
+cups_listen: []                 # If cups_listen_all is false, provide explicit Listen entries (e.g., ["127.0.0.1:631", "/var/run/cups/cups.sock", "192.168.1.203:631"]) 
+cups_server_admin: fabry225@gmail.com
+cups_allow_from:
+  - "@LOCAL"                   # Allow local subnet via CUPS macro
+  - "127.0.0.1"
+  - "localhost"
+  - "192.168.1.0/24"           # Adjust to your LAN
+cups_backup_original: true
+cups_admin_user: "fabrizio"     # User to grant lpadmin privileges for web admin
+
+# Manage cupsd.conf via template (set to false to keep server config manual)
+cups_manage_server_conf: true
+
+# Extra driver packages to install (e.g., Samsung SpliX for rastertospl)
+cups_extra_packages:
+  - printer-driver-splix
+
+# Declarative printer configuration (optional)
+# Each item may include:
+#  - name: Printer queue name (no spaces recommended)
+#  - device_uri: e.g., usb://Samsung/SCX-4200%20Series?... or ipp://host/printers/NAME
+#  - description: Human-friendly description
+#  - location: Physical location label
+#  - enabled: true|false (default true if omitted)
+#  - default: true|false (set as system default)
+#  - model: Driver model string (lpadmin -m). Use when you want a packaged model.
+#  - ppd: Absolute path to a PPD file on target host (lpadmin -P)
+#  - ppd_src: Path within role/files or repository to copy to /usr/share/ppd/custom/NAME.ppd
+cups_printers: []

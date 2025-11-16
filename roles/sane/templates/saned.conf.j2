@@ -1,0 +1,7 @@
+## Managed by Ansible: saned allowed clients
+# Lines here define clients/networks allowed to connect to saned
+{% for c in sane_allowed_clients %}
+{{ c }}
+{% endfor %}
+
+# You can add more fine-grained options in this file later.

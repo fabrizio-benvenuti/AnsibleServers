@@ -1,0 +1,14 @@
+---
+# Defaults for scanservjs role
+scanservjs_install_method: docker   # supported: docker
+scanservjs_image: sbs20/scanservjs
+scanservjs_version: latest
+scanservjs_container_name: scanservjs-container
+scanservjs_use_host_network: true
+scanservjs_publish_port: 8080
+scanservjs_dbus_socket: /var/run/dbus
+scanservjs_privileged: true
+scanservjs_restart: unless-stopped
+
+# If docker is not present, set to true to let this role install docker (APT)
+scanservjs_install_docker: false

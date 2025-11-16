@@ -1,0 +1,3 @@
+---
+- import_tasks: install_and_configure.yml
+  tags: install_scanservjs

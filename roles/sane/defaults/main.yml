@@ -1,0 +1,25 @@
+---
+# Defaults for sane (SANE / saned) role
+sane_packages:
+  - sane-utils
+  - avahi-daemon
+
+# Extra backend packages you want installed on hosts (e.g., libsane-extras)
+sane_extra_packages: []
+
+# If your device needs xerox_mfp entries, list vendor/product hex pairs here
+# Example: [{'vendor': '04e8', 'product': '341b'}]
+sane_xerox_ids: []
+
+# Create a scanner group for device access and add this user to it (optional)
+sane_device_group: scanner
+sane_device_user: "fabrizio"
+
+# Allowed clients (one per line) for /etc/sane.d/saned.conf
+# Examples: 127.0.0.1, 192.168.1.0/24
+sane_allowed_clients:
+  - 127.0.0.1
+  - 192.168.1.0/24
+
+# Whether this role should manage /etc/sane.d/saned.conf
+sane_manage_saned_conf: true

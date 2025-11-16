@@ -6,6 +6,9 @@
   roles:
     - common
     - netplan
+    - cups
+    - sane
+    - scanservjs
     - wake_on_lan
     - AP
     - n8n_docker
