@@ -42,7 +42,7 @@
   loop_control:
     loop_var: item
     index_var: pool_idx
-  when: zpool_imported_check.results[pool_idx].rc != 0 and zpool_importable_check.results[pool_idx].rc == 0
+  when: zpool_imported_check.results[pool_idx].rc != 0 and zpool_importable_check.results[pool_idx].rc != 0
 
 - name: Check if dataset exists
   ansible.builtin.command: "zfs list -H -o name {{ item.0.name }}/{{ item.1.name }}"
