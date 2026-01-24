@@ -50,25 +50,40 @@ SMTP_PORT=${SMTP_PORT:-}
 SMTP_USER=${SMTP_USER:-}
 SMTP_PASSWORD=${SMTP_PASSWORD:-}
 
+EMAIL_SENT=0
+
 if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_PORT" ] || [ -z "$SMTP_USER" ] || [ -z "$SMTP_PASSWORD" ]; then
-  echo "Missing SMTP_* environment variables; skipping email notification" >&2
+  echo "Missing SMTP_* environment variables; email not sent" >&2
 else
+  set +e
   sendemail \
     -s "$SMTP_HOST:$SMTP_PORT" \
     -f "$SMTP_USER" \
-  -t "$EMAIL" \
-  -u "$EMAIL_SUBJECT" \
-  -m "$EMAIL_BODY" \
-  -a "$LOG_FILE" \
+    -t "$EMAIL" \
+    -u "$EMAIL_SUBJECT" \
+    -m "$EMAIL_BODY" \
+    -a "$LOG_FILE" \
     -xu "$SMTP_USER" \
-    -xp "$SMTP_PASSWORD" || true
+    -xp "$SMTP_PASSWORD"
+  SENDMAIL_STATUS=$?
+  set -e
+
+  if [ $SENDMAIL_STATUS -eq 0 ]; then
+    EMAIL_SENT=1
+  else
+    echo "Email notification failed to send (sendemail exit code: $SENDMAIL_STATUS)" >&2
+  fi
 fi
 
-sync
-rm -f "$LOG_FILE"
 
+
+if [ $RSYNC_STATUS -eq 0 ] && [ $EMAIL_SENT -eq 1 ]; then
+  sync
+  rm -f "$LOG_FILE"
 {% if server1_backup_poweroff_on_success | default(true) | bool %}
-if [ $RSYNC_STATUS -eq 0 ]; then
   sudo -n poweroff || poweroff
-fi
 {% endif %}
+elif [ $RSYNC_STATUS -eq 0 ] && [ $EMAIL_SENT -ne 1 ]; then
+  echo "Backup succeeded but email was not sent; skipping poweroff" >&2
+  echo "Log file retained at $LOG_FILE" >&2
+fi

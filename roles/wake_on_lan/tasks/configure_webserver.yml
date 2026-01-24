@@ -60,7 +60,7 @@
     dest: /opt/webserver/auth.py
     owner: fabrizio
     group: fabrizio
-    mode: '0644'
+    mode: '0600'
 
 - name: Template app.py with secret key from vault
   template:
@@ -68,7 +68,7 @@
     dest: /opt/webserver/app.py
     owner: fabrizio
     group: fabrizio
-    mode: '0755'
+    mode: '0600'
 
 - name: Decrypt and copy SSL certificate
   ansible.builtin.copy:

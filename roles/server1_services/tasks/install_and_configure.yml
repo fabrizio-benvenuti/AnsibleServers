@@ -43,7 +43,6 @@
   loop:
     - power_on.sh
     - power_off.sh
-    - wakeonlan.sh
     - backup.sh
 
 - name: Install systemd unit files (general)
@@ -54,7 +53,6 @@
     group: root
     mode: "0644"
   loop:
-    - wakeonlan.service
     - power_on.service
     - power_off.service
   notify: Reload systemd
@@ -73,14 +71,6 @@
 
 - name: Flush handlers (systemd daemon-reload)
   ansible.builtin.meta: flush_handlers
-
-- name: Enable and start wakeonlan.service
-  ansible.builtin.systemd:
-    name: wakeonlan.service
-    enabled: true
-    state: started
-  when: server1_services_enable_wakeonlan | bool
-
 
 - name: Disable and stop backup.service (timer will run it)
   ansible.builtin.systemd:

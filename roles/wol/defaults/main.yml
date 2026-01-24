@@ -1,0 +1,13 @@
+---
+# Enable/disable Wake-on-LAN service.
+# Must be explicitly set to true/false; if null/empty the play fails.
+wol_enable: true
+
+# Interface name to configure, e.g. "enp2s0".
+wol_interface: ""
+
+# Wake-on-LAN mode; "g" means magic packet.
+wol_mode: "g"
+
+wol_packages:
+  - ethtool

@@ -26,13 +26,10 @@ server1_backup_timer_randomized_delay_sec: null
 server1_backup_poweroff_on_success: true
 
 # Service enablement (can be overridden in host_vars)
-server1_services_enable_wakeonlan: true
 server1_services_enable_backup: true
 
 # Packages required by the role
 server1_services_packages:
-  - ethtool
-  - wakeonlan
   - rsync
   - sendemail
   - openssh-client

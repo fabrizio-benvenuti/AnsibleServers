@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -euo pipefail
+
+intfc="{{ wol_effective_interface }}"
+mode="{{ wol_effective_mode }}"
+
+# Check if Wake-on-LAN is enabled on requested mode (default: "g")
+if ! ethtool "$intfc" | grep -q "Wake-on: $mode"; then
+  echo "Setting Wake-on-LAN on $intfc to '$mode' configuration..."
+  ethtool -s "$intfc" wol "$mode"
+  echo "Wake-on-LAN has been enabled on $intfc."
+else
+  echo "Wake-on-LAN is already enabled on $intfc with configuration '$mode'."
+fi

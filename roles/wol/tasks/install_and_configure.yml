@@ -1,0 +1,76 @@
+---
+- name: Resolve effective WOL settings
+  ansible.builtin.set_fact:
+    wol_effective_interface: "{{ wol_interface | default(server1_wol_interface | default(''), true) }}"
+    wol_effective_mode: "{{ wol_mode | default('g') }}"
+
+- name: Validate wol_enable is explicitly set
+  ansible.builtin.assert:
+    that:
+      - wol_enable is not none
+      - wol_enable is boolean
+    fail_msg: "wol_enable must be explicitly set to true/false (null is not allowed)."
+
+- name: Resolve whether WOL should be enabled
+  ansible.builtin.set_fact:
+    wol_effective_enable: "{{ wol_enable | bool }}"
+
+- name: Validate wol_mode when enabled
+  ansible.builtin.assert:
+    that:
+      - wol_effective_mode | length > 0
+    fail_msg: "wol_mode must be non-empty when Wake-on-LAN is enabled."
+  when: wol_effective_enable
+
+- name: Validate WOL interface when enabled
+  ansible.builtin.assert:
+    that:
+      - wol_effective_interface | length > 0
+    fail_msg: "Wake-on-LAN enabled but no interface provided. Set wol_interface (recommended) or define server1_wol_interface (legacy)."
+  when: wol_effective_enable
+
+- name: Install required packages
+  ansible.builtin.apt:
+    name: "{{ wol_packages }}"
+    state: present
+    update_cache: true
+  when: wol_effective_enable
+
+- name: Ensure /init exists
+  ansible.builtin.file:
+    path: /init
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: wol_effective_enable
+
+- name: Install wakeonlan script into /init
+  ansible.builtin.template:
+    src: init/wakeonlan.sh.j2
+    dest: /init/wakeonlan.sh
+    owner: root
+    group: root
+    mode: "0755"
+  when: wol_effective_enable
+
+- name: Install systemd unit file
+  ansible.builtin.template:
+    src: systemd/wakeonlan.service.j2
+    dest: /etc/systemd/system/wakeonlan.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  when: wol_effective_enable
+
+- name: Flush handlers (systemd daemon-reload)
+  ansible.builtin.meta: flush_handlers
+  when: wol_effective_enable
+
+- name: Enable and start wakeonlan.service
+  ansible.builtin.systemd:
+    name: wakeonlan.service
+    enabled: true
+    state: started
+  when: wol_effective_enable

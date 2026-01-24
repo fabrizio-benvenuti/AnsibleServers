@@ -5,5 +5,6 @@
   gather_facts: true
   roles:
     - zfs
+    - wol
     - role: server1_services
       when: inventory_hostname == 'server1'

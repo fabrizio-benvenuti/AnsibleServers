@@ -1,0 +1,4 @@
+---
+- name: Install and configure Wake-on-LAN service
+  ansible.builtin.import_tasks: install_and_configure.yml
+  tags: configure_wol
