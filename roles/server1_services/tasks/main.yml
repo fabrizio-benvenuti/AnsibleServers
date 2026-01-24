@@ -1,0 +1,4 @@
+---
+- name: "Install and configure server1 services"
+  ansible.builtin.import_tasks: install_and_configure.yml
+  tags: install_and_configure

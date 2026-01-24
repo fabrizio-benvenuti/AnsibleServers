@@ -1,0 +1,38 @@
+---
+# Sync-related defaults (keep here unless overridden in host_vars)
+
+server1_backup_reverse: true
+
+# Backup (required when server1_services_enable_backup=true)
+# These are used to build the backup.service ExecStart and the SMTP env file.
+# Keep secrets (SMTP password) in vault/host_vars.
+server1_backup_local_dir: null
+server1_backup_remote_dir: null
+server1_backup_remote_user: null
+server1_backup_remote_ip: null
+server1_backup_remote_port: null
+server1_backup_email_to: null
+
+server1_backup_smtp_host: null
+server1_backup_smtp_port: null
+server1_backup_smtp_user: null
+server1_backup_smtp_password: null
+
+# Systemd timer settings (defaults match the reference unit)
+server1_backup_timer_on_boot_sec: null
+server1_backup_timer_randomized_delay_sec: null
+
+# If true, the backup script powers the machine off after a successful rsync.
+server1_backup_poweroff_on_success: true
+
+# Service enablement (can be overridden in host_vars)
+server1_services_enable_wakeonlan: true
+server1_services_enable_backup: true
+
+# Packages required by the role
+server1_services_packages:
+  - ethtool
+  - wakeonlan
+  - rsync
+  - sendemail
+  - openssh-client

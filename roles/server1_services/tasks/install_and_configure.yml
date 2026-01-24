@@ -1,0 +1,98 @@
+---
+- name: Install required packages
+  ansible.builtin.apt:
+    name: "{{ server1_services_packages }}"
+    state: present
+    update_cache: true
+
+- name: Ensure /init exists
+  ansible.builtin.file:
+    path: /init
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure /etc/server1_services exists
+  ansible.builtin.file:
+    path: /etc/server1_services
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Validate backup configuration
+  ansible.builtin.import_tasks: validate_backup.yml
+  when: server1_services_enable_backup | bool
+
+- name: Install backup environment file (contains SMTP credentials)
+  ansible.builtin.template:
+    src: server1_services/backup.env.j2
+    dest: /etc/server1_services/backup.env
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install scripts into /init
+  ansible.builtin.template:
+    src: "init/{{ item }}.j2"
+    dest: "/init/{{ item }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - power_on.sh
+    - power_off.sh
+    - wakeonlan.sh
+    - backup.sh
+
+- name: Install systemd unit files (general)
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - wakeonlan.service
+    - power_on.service
+    - power_off.service
+  notify: Reload systemd
+
+- name: Install systemd unit files (backup)
+  ansible.builtin.template:
+    src: "systemd/{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0640"
+  loop:
+    - backup.service
+    - backup.timer
+  notify: Reload systemd
+
+- name: Flush handlers (systemd daemon-reload)
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start wakeonlan.service
+  ansible.builtin.systemd:
+    name: wakeonlan.service
+    enabled: true
+    state: started
+  when: server1_services_enable_wakeonlan | bool
+
+
+- name: Disable and stop backup.service (timer will run it)
+  ansible.builtin.systemd:
+    name: backup.service
+    enabled: false
+    state: stopped
+
+- name: Enable and start backup.timer (runs 10 minutes after boot)
+  ansible.builtin.systemd:
+    name: backup.timer
+    enabled: true
+    state: started
+  when:
+    - server1_services_enable_backup | bool
+    - server1_backup_email_to | default('') | length > 0

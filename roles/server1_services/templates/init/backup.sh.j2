@@ -1,0 +1,74 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Usage: backup.sh <LOCAL_DIR> <REMOTE_DIR> <USER> <IP> <PORT> <EMAIL> [reverse]
+
+if [ "$#" -lt 6 ] || [ "$#" -gt 7 ]; then
+  echo "Usage: $0 <LOCAL_DIR[without trailing slash]> <REMOTE_DIR> <USER> <IP> <PORT> <EMAIL> [reverse]" >&2
+  exit 1
+fi
+
+LOCAL_DIR=$1
+REMOTE_DIR=$2
+USER=$3
+IP=$4
+PORT=$5
+EMAIL=$6
+REVERSE=${7:-}
+
+SSH_CMD="ssh -p $PORT"
+
+LOG_FILE="/tmp/backup_$(date +'%Y%m%d_%H%M%S').txt"
+START_TIME=$(date)
+
+set +e
+
+if [ "$REVERSE" == "reverse" ]; then
+  rsync -avP -e "$SSH_CMD" "$USER@$IP:${REMOTE_DIR%/}/*" "$LOCAL_DIR" &> "$LOG_FILE"
+else
+  rsync -avP -e "$SSH_CMD" "${LOCAL_DIR%/}/*" "$USER@$IP:${REMOTE_DIR%/}" &> "$LOG_FILE"
+fi
+RSYNC_STATUS=$?
+set -e
+END_TIME=$(date)
+
+if [ $RSYNC_STATUS -eq 0 ]; then
+  STATUS="PASSED"
+else
+  STATUS="FAILED"
+fi
+
+EMAIL_SUBJECT="Backup $STATUS: $(date)"
+EMAIL_BODY="Backup Status: $STATUS
+Start Time: $START_TIME
+End Time: $END_TIME
+Log file is attached."
+
+SMTP_HOST=${SMTP_HOST:-}
+SMTP_PORT=${SMTP_PORT:-}
+SMTP_USER=${SMTP_USER:-}
+SMTP_PASSWORD=${SMTP_PASSWORD:-}
+
+if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_PORT" ] || [ -z "$SMTP_USER" ] || [ -z "$SMTP_PASSWORD" ]; then
+  echo "Missing SMTP_* environment variables; skipping email notification" >&2
+else
+  sendemail \
+    -s "$SMTP_HOST:$SMTP_PORT" \
+    -f "$SMTP_USER" \
+  -t "$EMAIL" \
+  -u "$EMAIL_SUBJECT" \
+  -m "$EMAIL_BODY" \
+  -a "$LOG_FILE" \
+    -xu "$SMTP_USER" \
+    -xp "$SMTP_PASSWORD" || true
+fi
+
+sync
+rm -f "$LOG_FILE"
+
+{% if server1_backup_poweroff_on_success | default(true) | bool %}
+if [ $RSYNC_STATUS -eq 0 ]; then
+  sudo -n poweroff || poweroff
+fi
+{% endif %}

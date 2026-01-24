@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Configuration
+DEVICE_IPS=({% for ip in server1_power_off_device_ips %}"{{ ip }}" {% endfor %})
+SSH_USERS=({% for u in server1_power_off_ssh_users %}"{{ u }}" {% endfor %})
+SSH_KEY="{{ server1_power_off_ssh_key }}"
+SSH_PORT={{ server1_power_off_ssh_port | int }}
+POWER_OFF_COMMAND="{{ server1_power_off_command }}"
+
+len_ips=$(echo "${DEVICE_IPS[@]}" | wc -w)
+len_users=$(echo "${SSH_USERS[@]}" | wc -w)
+if [ "$len_ips" -ne "$len_users" ]; then
+  echo "DEVICE_IPS and SSH_USERS length mismatch" >&2
+  exit 1
+fi
+
+send_ssh_command() {
+  local ip=$1
+  local usr=$2
+  local command=$3
+  echo "sending $command to $usr@$ip"
+  response=$(ssh -p "$SSH_PORT" -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$usr@$ip" "$command" 2>&1 || true)
+  echo "response from host was: $response"
+  if echo "$response" | grep -i "connection" | grep -i "closed by remote host" >/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+for i in $(seq 0 $((len_ips - 1))); do
+  ip="${DEVICE_IPS[$i]}"
+  usr="${SSH_USERS[$i]}"
+  if ping -c 10 "$ip" >/dev/null; then
+    if send_ssh_command "$ip" "$usr" "$POWER_OFF_COMMAND"; then
+      echo "### successfully ran power off on ip $ip with user $usr ###"
+    else
+      echo "!!! failed to run power off on ip $ip with user $usr !!!" >&2
+      exit 1
+    fi
+  else
+    echo "$ip was already off"
+  fi
+done

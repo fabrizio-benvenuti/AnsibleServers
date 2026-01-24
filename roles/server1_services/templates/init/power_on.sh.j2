@@ -1,0 +1,34 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Configuration
+DEVICE_MACS=({% for mac in server1_power_on_device_macs %}"{{ mac }}" {% endfor %})
+DEVICE_IPS=({% for ip in server1_power_on_device_ips %}"{{ ip }}" {% endfor %})
+DELAY_WAKE_PING={{ server1_power_on_delay_wake_ping | int }}
+
+len_macs=$(echo "${DEVICE_MACS[@]}" | wc -w)
+len_ips=$(echo "${DEVICE_IPS[@]}" | wc -w)
+if [ "$len_macs" -ne "$len_ips" ]; then
+  echo "DEVICE_MACS and DEVICE_IPS length mismatch" >&2
+  exit 1
+fi
+
+for i in $(seq 0 $((len_macs - 1))); do
+  MAC="${DEVICE_MACS[$i]}"
+  IP="${DEVICE_IPS[$i]}"
+  echo "sending first wake on lan to $MAC"
+  wakeonlan "$MAC"
+  sleep 1
+  echo "sending second wake on lan to $MAC"
+  wakeonlan "$MAC"
+  echo "waiting $DELAY_WAKE_PING seconds"
+  sleep "$DELAY_WAKE_PING"
+  echo "starting ping to $IP"
+  if ping -c 1 "$IP"; then
+    echo "### correctly pinged $IP after waking up MAC: $MAC ###"
+  else
+    echo "!!! failed to ping $IP $DELAY_WAKE_PING seconds after waking MAC: $MAC !!!" >&2
+    exit 1
+  fi
+done

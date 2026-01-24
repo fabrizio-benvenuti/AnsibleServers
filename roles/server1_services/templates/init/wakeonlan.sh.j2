@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -euo pipefail
+
+intfc="{{ server1_wol_interface }}"
+
+# Check if Wake-on-LAN is enabled on configuration "g"
+if ! ethtool "$intfc" | grep -q "Wake-on: g"; then
+  echo "Setting Wake-on-LAN on $intfc to 'g' configuration..."
+  ethtool -s "$intfc" wol g
+  echo "Wake-on-LAN has been enabled on $intfc."
+else
+  echo "Wake-on-LAN is already enabled on $intfc with configuration 'g'."
+fi

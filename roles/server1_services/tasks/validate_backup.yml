@@ -1,0 +1,48 @@
+---
+- name: Validate backup configuration variables
+  ansible.builtin.assert:
+    that:
+      - server1_backup_local_dir is defined
+      - server1_backup_local_dir is not none
+      - (server1_backup_local_dir | string | length) > 0
+      - server1_backup_remote_dir is defined
+      - server1_backup_remote_dir is not none
+      - (server1_backup_remote_dir | string | length) > 0
+      - server1_backup_remote_user is defined
+      - server1_backup_remote_user is not none
+      - (server1_backup_remote_user | string | length) > 0
+      - server1_backup_remote_ip is defined
+      - server1_backup_remote_ip is not none
+      - (server1_backup_remote_ip | string | length) > 0
+      - server1_backup_remote_port is defined
+      - server1_backup_remote_port is not none
+      - (server1_backup_remote_port | int) > 0
+      - server1_backup_email_to is defined
+      - server1_backup_email_to is not none
+      - (server1_backup_email_to | string | length) > 0
+      - server1_backup_smtp_host is defined
+      - server1_backup_smtp_host is not none
+      - (server1_backup_smtp_host | string | length) > 0
+      - server1_backup_smtp_port is defined
+      - server1_backup_smtp_port is not none
+      - (server1_backup_smtp_port | int) > 0
+      - server1_backup_smtp_user is defined
+      - server1_backup_smtp_user is not none
+      - (server1_backup_smtp_user | string | length) > 0
+      - server1_backup_smtp_password is defined
+      - server1_backup_smtp_password is not none
+      - (server1_backup_smtp_password | string | length) > 0
+      - server1_backup_timer_on_boot_sec is defined
+      - server1_backup_timer_on_boot_sec is not none
+      - (server1_backup_timer_on_boot_sec | string | length) > 0
+      - server1_backup_timer_randomized_delay_sec is defined
+      - server1_backup_timer_randomized_delay_sec is not none
+      - (server1_backup_timer_randomized_delay_sec | string | length) > 0
+    fail_msg: >-
+      Backup is enabled but one or more required vars are missing/empty.
+      Set: server1_backup_local_dir, server1_backup_remote_dir, server1_backup_remote_user,
+      server1_backup_remote_ip, server1_backup_remote_port, server1_backup_email_to,
+      server1_backup_smtp_host, server1_backup_smtp_port, server1_backup_smtp_user,
+      server1_backup_smtp_password,
+      server1_backup_timer_on_boot_sec, server1_backup_timer_randomized_delay_sec.
+  when: server1_services_enable_backup | bool

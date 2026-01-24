@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Backup Service 10 minutes after boot with 2 minutes random delay
+Requires=network-online.target
+After=network-online.target
+
+[Timer]
+OnBootSec={{ server1_backup_timer_on_boot_sec | mandatory }}
+RandomizedDelaySec={{ server1_backup_timer_randomized_delay_sec | mandatory }}
+Unit=backup.service
+
+[Install]
+WantedBy=timers.target

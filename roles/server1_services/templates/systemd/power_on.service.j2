@@ -1,0 +1,11 @@
+[Unit]
+Description=Power On Devices
+After=network.target
+
+[Service]
+ExecStart=/init/power_on.sh
+User=root
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=30s
+StartLimitBurst=5

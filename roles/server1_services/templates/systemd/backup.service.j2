@@ -1,0 +1,13 @@
+[Unit]
+Description=Backup on Startup
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/server1_services/backup.env
+ExecStart=/init/backup.sh {{ server1_backup_local_dir | mandatory }} {{ server1_backup_remote_dir | mandatory }} {{ server1_backup_remote_user | mandatory }} {{ server1_backup_remote_ip | mandatory }} {{ server1_backup_remote_port | mandatory }} {{ server1_backup_email_to | mandatory }}{% if server1_backup_reverse | default(false) | bool %} reverse{% endif %}
+
+User=server1
+
+[Install]
+WantedBy=multi-user.target
+
