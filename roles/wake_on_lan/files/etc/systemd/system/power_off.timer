@@ -2,7 +2,7 @@
 Description=Timer to power off devices
 
 [Timer]
-OnCalendar=4:00
+OnCalendar=1:45
 Persistent=true
 
 [Install]

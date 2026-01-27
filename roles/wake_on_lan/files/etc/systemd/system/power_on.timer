@@ -2,7 +2,7 @@
 Description=Timer to power on devices
 
 [Timer]
-OnCalendar=02:30
+OnCalendar=00:30
 Persistent=true
 
 [Install]
